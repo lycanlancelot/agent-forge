@@ -1,0 +1,28 @@
+{
+  "name": "agent-forge",
+  "version": "1.0.0",
+  "description": "Coding Agent Manager - Manage Claude Code, Codex, and Kimi Code from a web dashboard",
+  "private": true,
+  "scripts": {
+    "install:all": "cd server && npm install && cd ../client && npm install",
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:server": "cd server && npm run dev",
+    "dev:client": "cd client && npm run dev",
+    "build": "cd server && npm run build && cd ../client && npm run build",
+    "build:server": "cd server && npm run build",
+    "build:client": "cd client && npm run build",
+    "start": "cd server && npm start",
+    "pm2:start": "cd server && npx pm2 start pm2.config.js",
+    "pm2:stop": "cd server && npx pm2 stop agent-forge",
+    "pm2:restart": "cd server && npx pm2 restart agent-forge",
+    "pm2:logs": "cd server && npx pm2 logs agent-forge",
+    "tunnel:start": "cd server && npm run tunnel:start",
+    "tunnel:stop": "cd server && npm run tunnel:stop"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
