@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, ListTodo, GitBranch, GitCommit,
-  Settings, ChevronLeft, ChevronRight, Bot, Circle
+  Settings, ChevronLeft, ChevronRight, Circle
 } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 

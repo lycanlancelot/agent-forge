@@ -1,4 +1,4 @@
-import type { ApiResponse, Agent, Task, WorktreeEntry, Commit, AppSettings, AgentConfig } from '../types';
+import type { ApiResponse, Agent, Task, WorktreeEntry, Commit, AppSettings, OverviewStats } from '../types';
 
 async function apiRequest<T>(method: string, path: string, body?: any): Promise<ApiResponse<T>> {
   const options: RequestInit = {

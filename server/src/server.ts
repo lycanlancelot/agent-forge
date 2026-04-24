@@ -43,11 +43,13 @@ export function createApp(
   app.use('/api/settings', createSettingsRouter(db, cloudflareManager));
   app.use('/api/system', createSystemRouter());
 
-  // Serve static frontend build (only if public dir exists, e.g. production)
-  if (fs.existsSync('public')) {
-    app.use(express.static('public'));
+  // Serve static frontend build — check public/ first (production copy), then ../client/dist
+  const staticDirs = ['public', '../client/dist'];
+  const staticDir = staticDirs.find(d => fs.existsSync(d));
+  if (staticDir) {
+    app.use(express.static(staticDir));
     app.get('*', (_req, res) => {
-      const indexPath = 'public/index.html';
+      const indexPath = `${staticDir}/index.html`;
       if (fs.existsSync(indexPath)) {
         res.sendFile(indexPath, { root: process.cwd() });
       } else {
@@ -72,6 +74,11 @@ export function createApp(
       socket.join(`agent:${agentId}`);
       const agent = db.getAgent(agentId);
       if (agent) socket.emit('agent:status', { agentId, status: agent.status });
+      // Replay buffered output so client doesn't miss early PTY data
+      const buffer = agentManager.getOutputBuffer(agentId);
+      for (const data of buffer) {
+        socket.emit('agent:output', { agentId, data });
+      }
     });
 
     socket.on('agent:disconnect', ({ agentId }) => {

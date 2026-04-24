@@ -13,8 +13,15 @@ interface ActiveSession {
   startTime: number;
 }
 
+const OUTPUT_BUFFER_SIZE = 500;
+
 export class AgentManager extends EventEmitter {
   private sessions = new Map<string, ActiveSession>();
+  private outputBuffers = new Map<string, string[]>();
+
+  getOutputBuffer(agentId: string): string[] {
+    return this.outputBuffers.get(agentId) ?? [];
+  }
 
   constructor(
     private db: AppDatabase,
@@ -86,15 +93,23 @@ export class AgentManager extends EventEmitter {
       const pty = this.ptyManager.spawn(finalCmd.command, finalCmd.args, {
         cols: 120,
         rows: 40,
-        cwd: finalCmd.cwd,
-        env: { ...process.env, ...agent.config.env_vars },
+        cwd: process.cwd(),
+        env: Object.fromEntries(
+          Object.entries({ ...process.env, ...agent.config.env_vars })
+            .filter((entry): entry is [string, string] => entry[1] !== undefined)
+        ),
       });
 
       const session: ActiveSession = { pty, agentId, taskId: taskId || undefined, startTime: Date.now() };
       this.sessions.set(agentId, session);
 
       // Wire PTY events
+      this.outputBuffers.set(agentId, []);
       pty.onData((data) => {
+        const buf = this.outputBuffers.get(agentId) ?? [];
+        buf.push(data);
+        if (buf.length > OUTPUT_BUFFER_SIZE) buf.shift();
+        this.outputBuffers.set(agentId, buf);
         this.emit('output', { agentId, data });
         this.db.addSessionLog({ agent_id: agentId, task_id: taskId || null, timestamp: Date.now(), type: 'stdout', content: data });
       });
@@ -103,6 +118,7 @@ export class AgentManager extends EventEmitter {
         const session = this.sessions.get(agentId);
         const wasManualStop = (session as any)?._manualStop;
         this.sessions.delete(agentId);
+        this.outputBuffers.delete(agentId);
         this.commitScheduler?.stop(agentId);
         const status = wasManualStop ? 'idle' : (code === 0 ? 'completed' : 'error');
         this.db.updateAgent(agentId, { status: status as any, updated_at: Date.now() });

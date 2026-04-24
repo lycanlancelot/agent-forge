@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { Bot, Plus, Wifi, WifiOff, Moon, Sun, Globe } from 'lucide-react';
+import { Bot, Plus, Wifi, WifiOff } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 
 export default function TopBar() {

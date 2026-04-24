@@ -26,8 +26,8 @@ export function createStatsRouter(db: AppDatabase): Router {
 
   router.get('/activity', (_req, res) => {
     try {
-      const logs = db.getSessionLogs(''); // need all agents - get from DB directly
-      res.json({ success: true, data: [] });
+      const logs = db.getSessionLogs('');
+      res.json({ success: true, data: logs });
     } catch (e: any) { res.status(500).json({ success: false, error: e.message }); }
   });
 

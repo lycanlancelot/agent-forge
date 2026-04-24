@@ -5,11 +5,11 @@ import AgentCard from '../components/dashboard/AgentCard';
 import ActivityFeed from '../components/dashboard/ActivityFeed';
 import QuickTaskBar from '../components/dashboard/QuickTaskBar';
 import CreateAgentModal from '../components/dashboard/CreateAgentModal';
-import { Activity, ListTodo, GitCommit, GitBranch, Play, Square, Pause, Plus } from 'lucide-react';
+import { Activity, ListTodo, GitCommit, GitBranch, Plus } from 'lucide-react';
 import * as api from '../services/api';
 
 export default function Dashboard() {
-  const { agents, tasks, stats, activity, refreshAgents, refreshTasks } = useAppContext();
+  const { agents, tasks, stats, activity, refreshAgents } = useAppContext();
   const [showCreate, setShowCreate] = useState(false);
 
   const handleStart = async (id: string) => {

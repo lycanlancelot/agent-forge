@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { BarChart3, GitCommit, Calendar } from 'lucide-react';
+import { BarChart3, GitCommit } from 'lucide-react';
 import CommitTimeline from '../components/commits/CommitTimeline';
 import CommitStats from '../components/commits/CommitStats';
 import { useAppContext } from '../context/AppContext';
