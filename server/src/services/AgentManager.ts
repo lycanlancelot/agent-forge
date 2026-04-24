@@ -39,11 +39,13 @@ export class AgentManager extends EventEmitter {
     switch (agent.type) {
       case 'claude': {
         const args: string[] = [];
-        if (taskDesc) args.push('-p', taskDesc);
+        if (taskDesc) {
+          args.push('--print', taskDesc);
+          args.push('--output-format', 'text');
+        }
         if (cfg.dangerously_skip_permissions) args.push('--dangerously-skip-permissions');
         if (cfg.use_plan_mode || task?.plan_mode) args.push('--permission-mode', 'plan');
         if (cfg.model) args.push('--model', cfg.model);
-        args.push('--output-format', 'stream-json');
         return { command: 'claude', args };
       }
       case 'codex': {

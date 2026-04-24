@@ -29,7 +29,8 @@ export class PTYManager {
       cols: options.cols || 80,
       rows: options.rows || 30,
       cwd: options.cwd || process.cwd(),
-      env: { ...process.env, ...options.env },
+      // Use caller-provided env as-is (caller is responsible for merging/filtering)
+      env: options.env ?? (process.env as Record<string, string>),
     });
 
     const session: PTYSession = {
