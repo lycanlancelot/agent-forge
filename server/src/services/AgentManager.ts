@@ -62,8 +62,14 @@ export class AgentManager extends EventEmitter {
   }
 
   private wrapWSL(command: string, args: string[], distro: string, cwd: string): { command: string; args: string[] } {
-    const inner = `${command} ${args.map(a => `\"${a.replace(/"/g, '\\"')}\"`).join(' ')}`;
+    const escaped = args.map(a => `"${a.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`).join(' ');
+    const inner = `${command} ${escaped}`;
     const wslCmd = `cd "${cwd}" && ${inner}`;
+    if (process.platform !== 'win32') {
+      // Native Linux/macOS: run directly via bash
+      return { command: 'bash', args: ['-c', wslCmd] };
+    }
+    // Windows: route through WSL
     return { command: 'wsl.exe', args: ['-d', distro, '-e', 'bash', '-c', wslCmd] };
   }
 
@@ -90,13 +96,20 @@ export class AgentManager extends EventEmitter {
 
       const finalCmd = this.wrapWSL(command, args, distro, worktreePath);
 
+      // Strip Claude Code parent-session markers so nested `claude` CLI can start
+      const CLAUDE_NESTED_VARS = new Set([
+        'CLAUDECODE', 'CLAUDE_CODE_ENTRYPOINT', 'CLAUDE_CODE_ENABLE_SDK_FILE_CHECKPOINTING',
+        'CLAUDE_CODE_EXECPATH', 'CLAUDE_PLUGIN_DATA',
+      ]);
       const pty = this.ptyManager.spawn(finalCmd.command, finalCmd.args, {
         cols: 120,
         rows: 40,
         cwd: process.cwd(),
         env: Object.fromEntries(
           Object.entries({ ...process.env, ...agent.config.env_vars })
-            .filter((entry): entry is [string, string] => entry[1] !== undefined)
+            .filter((entry): entry is [string, string] =>
+              entry[1] !== undefined && !CLAUDE_NESTED_VARS.has(entry[0])
+            )
         ),
       });
 
@@ -120,13 +133,14 @@ export class AgentManager extends EventEmitter {
         this.sessions.delete(agentId);
         this.outputBuffers.delete(agentId);
         this.commitScheduler?.stop(agentId);
-        const status = wasManualStop ? 'idle' : (code === 0 ? 'completed' : 'error');
-        this.db.updateAgent(agentId, { status: status as any, updated_at: Date.now() });
+        // Agent always returns to idle after exit so Ralph Loop can pick up next task
+        this.db.updateAgent(agentId, { status: 'idle', updated_at: Date.now() });
         if (taskId) {
-          this.db.updateTask(taskId, { status: status as any, completed_at: Date.now(), exit_code: code });
+          const taskStatus = wasManualStop ? 'cancelled' : (code === 0 ? 'completed' : 'failed');
+          this.db.updateTask(taskId, { status: taskStatus as any, completed_at: Date.now(), exit_code: code });
         }
         this.emit('exit', { agentId, code, signal });
-        this.emit('status', { agentId, status });
+        this.emit('status', { agentId, status: 'idle' });
       });
 
       // Update DB status

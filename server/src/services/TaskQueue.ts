@@ -24,7 +24,7 @@ export class TaskQueue extends EventEmitter {
   async dequeue(agentId: string): Promise<Task | null> {
     const pending = this.db.getTasks({ status: 'pending' });
     if (pending.length === 0) return null;
-    const task = pending[0];
+    const task = pending.sort((a, b) => b.priority - a.priority || a.created_at - b.created_at)[0];
     this.db.updateTask(task.id, { agent_id: agentId, status: 'assigned' });
     this.emit('task:assigned', { task: this.db.getTask(task.id)!, agentId });
     return this.db.getTask(task.id);
