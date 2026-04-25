@@ -14,6 +14,7 @@ interface AppContextType {
   refreshTasks: () => void;
   refreshStats: () => void;
   refreshSettings: () => void;
+  refreshActivity: () => void;
   updateSettings: (patch: Partial<AppSettings>) => void;
   addActivity: (item: ActivityItem) => void;
 }
@@ -57,13 +58,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setActivity(prev => [item, ...prev].slice(0, 100));
   }, []);
 
+  const refreshActivity = useCallback(async () => {
+    const res = await api.getActivity();
+    if (res.success && res.data) setActivity(res.data);
+  }, []);
+
   // Initial load
   useEffect(() => {
     refreshAgents();
     refreshTasks();
     refreshStats();
     refreshSettings();
-  }, [refreshAgents, refreshTasks, refreshStats, refreshSettings]);
+    refreshActivity();
+  }, [refreshAgents, refreshTasks, refreshStats, refreshSettings, refreshActivity]);
 
   // Socket event listeners for real-time updates
   useEffect(() => {
@@ -94,7 +101,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   return (
     <AppContext.Provider value={{
       settings, agents, tasks, stats, activity, socketConnected,
-      refreshAgents, refreshTasks, refreshStats, refreshSettings, updateSettings, addActivity
+      refreshAgents, refreshTasks, refreshStats, refreshSettings, refreshActivity, updateSettings, addActivity
     }}>
       {children}
     </AppContext.Provider>

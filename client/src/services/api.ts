@@ -1,4 +1,4 @@
-import type { ApiResponse, Agent, Task, WorktreeEntry, Commit, AppSettings, OverviewStats } from '../types';
+import type { ApiResponse, Agent, Task, WorktreeEntry, Commit, AppSettings, OverviewStats, ActivityItem } from '../types';
 
 async function apiRequest<T>(method: string, path: string, body?: any): Promise<ApiResponse<T>> {
   const options: RequestInit = {
@@ -48,6 +48,7 @@ export const getCommitStats = () => apiRequest<any>('GET', '/commits/stats');
 
 // Stats
 export const getStats = () => apiRequest<OverviewStats>('GET', '/stats/overview');
+export const getActivity = () => apiRequest<ActivityItem[]>('GET', '/stats/activity');
 
 // Settings
 export const getSettings = () => apiRequest<AppSettings>('GET', '/settings');

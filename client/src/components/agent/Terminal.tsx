@@ -61,15 +61,21 @@ export default function Terminal({ agentId, status }: Props) {
     };
   }, [agentId, emit]);
 
-  // Listen to agent output via Socket.io
+  // Join the agent room + listen for output (including buffer replay on connect)
   useEffect(() => {
+    if (!connected) return;
+    emit('agent:connect', { agentId });
+
     const unsub = on('agent:output', ({ agentId: aid, data }: { agentId: string; data: string }) => {
       if (aid === agentId && termRef.current) {
         termRef.current.write(data);
       }
     });
-    return () => { unsub?.(); };
-  }, [agentId, on]);
+    return () => {
+      emit('agent:disconnect', { agentId });
+      unsub?.();
+    };
+  }, [agentId, on, emit, connected]);
 
   return (
     <div className="flex flex-col h-full bg-[#0c0c0c] rounded-xl border border-zinc-800 overflow-hidden">
