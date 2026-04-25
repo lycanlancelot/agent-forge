@@ -113,9 +113,37 @@ export interface OverviewStats {
 export interface ActivityItem {
   id: string;
   timestamp: number;
-  type: 'agent_started' | 'agent_stopped' | 'agent_error' | 'task_completed' | 'task_failed' | 'commit_made' | 'worktree_created';
+  type: 'agent_started' | 'agent_stopped' | 'agent_error' | 'task_completed' | 'task_failed' | 'commit_made' | 'worktree_created' | 'system_log' | 'agent_output';
   title: string;
   description: string;
   agent_id?: string;
   task_id?: string;
+}
+
+export type TaskRunStatus = 'running' | 'completed' | 'failed' | 'cancelled';
+
+export interface TaskRun {
+  id: string;
+  task_id: string | null;
+  agent_id: string;
+  agent_config_snapshot: string;
+  repo_head: string | null;
+  worktree_path: string | null;
+  started_at: number;
+  ended_at: number | null;
+  status: TaskRunStatus;
+  exit_code: number | null;
+  summary: string | null;
+}
+
+export type EventType = 'run_started' | 'run_ended' | 'agent_output' | 'file_changed' | 'commit_created' | 'test_started' | 'test_failed' | 'approval_requested';
+
+export interface AgentEvent {
+  id: string;
+  run_id: string;
+  agent_id: string;
+  task_id: string | null;
+  timestamp: number;
+  event_type: EventType;
+  data: string;
 }
