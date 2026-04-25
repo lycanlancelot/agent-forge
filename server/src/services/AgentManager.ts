@@ -10,6 +10,7 @@ interface ActiveSession {
   pty: ReturnType<PTYManager['spawn']>;
   agentId: string;
   taskId?: string;
+  runId?: string;
   startTime: number;
 }
 
@@ -93,6 +94,18 @@ export class AgentManager extends EventEmitter {
       const task = taskId ? this.db.getTask(taskId) : undefined;
       if (taskId && !task) throw new Error('Task not found');
 
+      // Create task run record
+      const taskRun = this.db.createTaskRun({
+        task_id: taskId || null,
+        agent_id: agentId,
+        agent_config_snapshot: JSON.stringify(agent.config),
+        repo_head: null,
+        worktree_path: worktreePath,
+        started_at: Date.now(),
+        status: 'running',
+      });
+      const runId = taskRun.id;
+
       const { command, args } = this.buildAgentCommand(agent, task || undefined);
       const distro = agent.config.wsl_distro;
 
@@ -115,7 +128,7 @@ export class AgentManager extends EventEmitter {
         ),
       });
 
-      const session: ActiveSession = { pty, agentId, taskId: taskId || undefined, startTime: Date.now() };
+      const session: ActiveSession = { pty, agentId, taskId: taskId || undefined, runId, startTime: Date.now() };
       this.sessions.set(agentId, session);
 
       // Wire PTY events
@@ -135,6 +148,9 @@ export class AgentManager extends EventEmitter {
         this.sessions.delete(agentId);
         this.outputBuffers.delete(agentId);
         this.commitScheduler?.stop(agentId);
+        // Update task run record
+        const runStatus = wasManualStop ? 'cancelled' : (code === 0 ? 'completed' : 'failed');
+        this.db.updateTaskRun(runId, { ended_at: Date.now(), status: runStatus, exit_code: code });
         // Agent always returns to idle after exit so Ralph Loop can pick up next task
         this.db.updateAgent(agentId, { status: 'idle', updated_at: Date.now() });
         if (taskId) {

@@ -1,5 +1,5 @@
 import Database from 'better-sqlite3';
-import type { Agent, Task, Commit, WorktreeEntry, SessionLog, AppSettings } from '../types';
+import type { Agent, Task, Commit, WorktreeEntry, SessionLog, AppSettings, TaskRun, AgentEvent } from '../types';
 import { DEFAULT_SETTINGS } from '../constants';
 import { generateId } from '../utils/id';
 
@@ -84,6 +84,30 @@ export class AppDatabase {
       CREATE TABLE IF NOT EXISTS settings (
         key TEXT PRIMARY KEY,
         value TEXT NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS task_runs (
+        id TEXT PRIMARY KEY,
+        task_id TEXT,
+        agent_id TEXT NOT NULL,
+        agent_config_snapshot TEXT NOT NULL,
+        repo_head TEXT,
+        worktree_path TEXT,
+        started_at INTEGER NOT NULL,
+        ended_at INTEGER,
+        status TEXT NOT NULL DEFAULT 'pending',
+        exit_code INTEGER,
+        summary TEXT
+      );
+
+      CREATE TABLE IF NOT EXISTS events (
+        id TEXT PRIMARY KEY,
+        run_id TEXT NOT NULL,
+        agent_id TEXT NOT NULL,
+        task_id TEXT,
+        timestamp INTEGER NOT NULL,
+        event_type TEXT NOT NULL,
+        data TEXT NOT NULL
       );
     `);
 
@@ -215,5 +239,38 @@ export class AppDatabase {
     const cur=this.getSettings(); const u={ ...cur, ...patch };
     this.db.prepare('INSERT OR REPLACE INTO settings (key,value) VALUES (?,?)').run('app',JSON.stringify(u));
     return u;
+  }
+
+  createTaskRun(data: Omit<TaskRun, 'id' | 'ended_at' | 'exit_code' | 'summary'>): TaskRun {
+    const id = generateId();
+    this.db.prepare(`INSERT INTO task_runs (id,task_id,agent_id,agent_config_snapshot,repo_head,worktree_path,started_at,ended_at,status,exit_code,summary)
+      VALUES (?,?,?,?,?,?,?,NULL,?,NULL,NULL)`)
+      .run(id, data.task_id||null, data.agent_id, data.agent_config_snapshot, data.repo_head||null, data.worktree_path||null, data.started_at, data.status);
+    return this.db.prepare('SELECT * FROM task_runs WHERE id=?').get(id) as TaskRun;
+  }
+
+  updateTaskRun(id: string, patch: Partial<Pick<TaskRun,'ended_at'|'status'|'exit_code'|'summary'>>): void {
+    const sets: string[] = []; const params: any[] = [];
+    for (const k of ['ended_at','status','exit_code','summary'] as const) {
+      if (k in patch) { sets.push(`${k}=?`); params.push((patch as any)[k]); }
+    }
+    if (sets.length) this.db.prepare(`UPDATE task_runs SET ${sets.join(',')} WHERE id=?`).run(...params, id);
+  }
+
+  getTaskRuns(taskId?: string): TaskRun[] {
+    if (taskId) return this.db.prepare('SELECT * FROM task_runs WHERE task_id=? ORDER BY started_at DESC').all(taskId) as TaskRun[];
+    return this.db.prepare('SELECT * FROM task_runs ORDER BY started_at DESC LIMIT 200').all() as TaskRun[];
+  }
+
+  addEvent(data: Omit<AgentEvent,'id'>): AgentEvent {
+    const id = generateId();
+    this.db.prepare(`INSERT INTO events (id,run_id,agent_id,task_id,timestamp,event_type,data) VALUES (?,?,?,?,?,?,?)`)
+      .run(id, data.run_id, data.agent_id, data.task_id||null, data.timestamp, data.event_type, data.data);
+    return { ...data, id };
+  }
+
+  getEvents(agentId?: string, limit=100): AgentEvent[] {
+    if (agentId) return this.db.prepare('SELECT * FROM events WHERE agent_id=? ORDER BY timestamp DESC LIMIT ?').all(agentId, limit) as AgentEvent[];
+    return this.db.prepare('SELECT * FROM events ORDER BY timestamp DESC LIMIT ?').all(limit) as AgentEvent[];
   }
 }
